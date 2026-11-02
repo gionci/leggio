@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Leggio</title>
+<meta name="description" content="Leggio: leggi, ascolta e allena studi per chitarra classica col microfono.">
+<meta name="theme-color" content="#ece4d3">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Music&text=%E2%99%A9" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --carta: #f5efe3; --carta2: #ece4d3; --foglio: #fffdf8; --inchiostro: #2a251f; --tenue: #7d7264; --filo: #d9cfbc;
+  --accento: #7a2e2e; --bene: #3d6b47; --quasi: #9a7a1e; --male: #a3392b; --tratto: rgba(122,46,46,.08);
+  --ombra: 0 1px 2px rgba(60,45,25,.08), 0 4px 16px rgba(60,45,25,.06);
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--carta); color: var(--inchiostro); font: 16px/1.45 "Noto Music", "Source Sans 3", system-ui, sans-serif; }
+h1, h2, h3, .serif { font-family: "Noto Music", "EB Garamond", Georgia, serif; font-weight: 500; }
+button { font: inherit; cursor: pointer; border: 1px solid var(--filo); background: var(--foglio); color: var(--inchiostro);
+  padding: .45em .9em; border-radius: 6px; }
+button:hover { border-color: var(--tenue); }
+button.primario { background: var(--accento); border-color: var(--accento); color: #fff; }
+button.primario:hover { filter: brightness(1.08); }
+button:disabled { opacity: .45; cursor: default; }
+input, select { font: inherit; color: inherit; }
+input[type=number] { width: 4.2em; padding: 3px 4px; border: 1px solid var(--filo); border-radius: 5px; background: var(--foglio); }
+select { padding: 3px 4px; border: 1px solid var(--filo); border-radius: 5px; background: var(--foglio); }
+
+header { display: flex; align-items: center; gap: 16px; padding: 10px 20px; border-bottom: 1px solid var(--filo); background: var(--carta2); flex-wrap: wrap; }
+header h1 { margin: 0; font-size: 22px; }
+header h1 small { font-size: 15px; color: var(--tenue); font-style: italic; margin-left: 8px; }
+header .spazio { flex: 1; }
+#livello { width: 90px; height: 8px; background: var(--filo); border-radius: 4px; overflow: hidden; }
+#livello i { display: block; height: 100%; width: 0; background: var(--bene); transition: width .08s; }
+#livelloTesto { font-size: 13px; color: var(--tenue); }
+
+nav { display: flex; gap: 2px; padding: 0 20px; border-bottom: 1px solid var(--filo); background: var(--carta2); overflow-x: auto; }
+nav button { border: 0; border-bottom: 3px solid transparent; border-radius: 0; background: none; padding: 9px 14px 7px; color: var(--tenue); white-space: nowrap; }
+nav button.scelto { color: var(--inchiostro); border-bottom-color: var(--accento); }
+main { padding: 16px 24px 40px; max-width: 1500px; margin: 0 auto; }
+.pannello[hidden] { display: none; }
+#testa { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 8px; }
+#testa h2 { margin: 0; font-size: 28px; }
+.meta { color: var(--tenue); }
+.comandi { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 10px 0 12px; }
+.bpm { display: flex; align-items: center; gap: 6px; background: var(--foglio); border: 1px solid var(--filo); border-radius: 8px; padding: 4px 8px; }
+.bpm input[type=number] { width: 58px; border: 0; background: none; font-size: 22px; text-align: center; font-family: "Noto Music", "EB Garamond", serif; }
+.bpm button { padding: 2px 9px; }
+.bpm span { color: var(--tenue); font-size: 13px; }
+label.scelta { display: flex; align-items: center; gap: 6px; color: var(--tenue); font-size: 15px; }
+.spazio { flex: 1; }
+.gruppo { display: inline-flex; border: 1px solid var(--filo); border-radius: 8px; overflow: hidden; }
+.gruppo button { border: 0; border-radius: 0; border-right: 1px solid var(--filo); background: var(--foglio); }
+.gruppo button:last-child { border-right: 0; }
+.gruppo button.scelto { background: var(--accento); color: #fff; }
+
+#leggio { position: relative; background: var(--foglio); border: 1px solid var(--filo); border-radius: 10px; box-shadow: var(--ombra); overflow: hidden; }
+#striscia { position: relative; overflow: hidden; height: 230px; }
+#striscia.libera { overflow-x: auto; }
+#rullo { position: absolute; left: 0; top: 0; will-change: transform; }
+#striscia.libera #rullo { position: relative; }
+#osmd svg { display: block; }
+#segni { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
+#testina { position: absolute; top: 12px; bottom: 12px; width: 2px; background: var(--accento); opacity: .55; left: 30%; pointer-events: none; }
+#striscia.libera #testina { display: none; }
+#bandaDemo { background: var(--quasi); color: #fff; padding: 8px 24px; font-size: 15px; }
+#bandaDemo a { color: #fff; font-weight: 600; }
+#striscia.scegli { cursor: crosshair; }
+.punto { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: var(--tenue); margin-right: 10px; }
+.punto .gruppo button { padding: 2px 10px; }
+#stato { display: flex; gap: 18px; align-items: baseline; padding: 8px 16px; border-top: 1px solid var(--filo); color: var(--tenue); font-size: 15px; min-height: 38px; }
+#stato b { color: var(--inchiostro); font-weight: 600; }
+#conta { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; font: 500 96px "EB Garamond", serif; color: var(--accento); background: rgba(255,253,248,.6); pointer-events: none; }
+.legenda { display: flex; gap: 14px; font-size: 13px; color: var(--tenue); margin: 8px 2px 0; flex-wrap: wrap; }
+.legenda i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
+
+.foglio { margin-top: 18px; background: var(--foglio); border: 1px solid var(--filo); border-radius: 10px; box-shadow: var(--ombra); padding: 18px 22px; }
+.foglio[hidden] { display: none; }
+.foglio h3 { margin: 0 0 8px; font-size: 22px; }
+.foglio h4 { margin: 16px 0 6px; font-size: 18px; font-family: "EB Garamond", serif; font-weight: 500; }
+.nota { color: var(--tenue); font-size: 14px; margin: 4px 0 8px; }
+.voto { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.voto .n { font: 500 64px/1 "EB Garamond", serif; color: var(--accento); }
+.voto .giudizio { font: italic 24px "EB Garamond", serif; }
+.carte { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 16px 0; }
+.carta { border: 1px solid var(--filo); border-radius: 8px; padding: 10px 14px; background: var(--carta); }
+.carta h4 { margin: 0 0 4px; font: 500 14px "Source Sans 3", sans-serif; color: var(--tenue); text-transform: uppercase; letter-spacing: .06em; }
+.carta .grande { font: 500 34px/1.1 "EB Garamond", serif; }
+.carta p { margin: 4px 0 0; font-size: 14px; color: var(--tenue); }
+.misure { display: flex; flex-wrap: wrap; gap: 3px; margin: 6px 0 4px; }
+.misure div { width: 34px; height: 30px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #fff; }
+.misure div.vuota { background: var(--carta2); color: var(--tenue); }
+.azioni { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+
+table.passaggi { border-collapse: collapse; width: 100%; font-size: 15px; }
+table.passaggi th { text-align: left; font-weight: 500; color: var(--tenue); font-size: 13px; text-transform: uppercase; letter-spacing: .05em; padding: 4px 8px; border-bottom: 1px solid var(--filo); }
+table.passaggi td { padding: 7px 8px; border-bottom: 1px solid var(--carta2); vertical-align: middle; }
+.barra { height: 8px; background: var(--carta2); border-radius: 4px; overflow: hidden; width: 120px; }
+.barra i { display: block; height: 100%; background: var(--male); }
+
+.allena { display: grid; grid-template-columns: minmax(280px, 380px) 1fr; gap: 18px; margin-top: 14px; }
+.allena .foglio { margin-top: 0; }
+.campo { display: flex; align-items: center; gap: 8px; margin: 10px 0; flex-wrap: wrap; }
+.campo > span:first-child { width: 120px; color: var(--tenue); font-size: 14px; }
+#catena { font: 500 30px "Noto Music", "EB Garamond", serif; }
+#pallini { font-size: 26px; letter-spacing: 4px; color: var(--bene); }
+#esitoGiro { font: italic 22px "EB Garamond", serif; min-height: 1.4em; }
+#esitoGiro.ok { color: var(--bene); } #esitoGiro.no { color: var(--male); }
+#diarioAllena { font-size: 14px; color: var(--tenue); max-height: 220px; overflow-y: auto; margin: 6px 0 0; padding-left: 18px; }
+.descrModo { font-size: 14px; color: var(--tenue); margin: 2px 0 6px; }
+
+.accordatore { display: grid; place-items: center; text-align: center; padding: 20px 0; }
+#accNota { font: 500 110px/1 "EB Garamond", serif; }
+#accHz { color: var(--tenue); margin: 6px 0 16px; font-variant-numeric: tabular-nums; }
+#accScala { position: relative; width: min(560px, 90vw); height: 64px; }
+#accScala .linea { position: absolute; left: 0; right: 0; top: 30px; height: 2px; background: var(--filo); }
+#accScala .centro { position: absolute; left: 50%; top: 10px; width: 2px; height: 42px; background: var(--bene); }
+#accScala .ago { position: absolute; left: 50%; top: 4px; width: 4px; height: 54px; margin-left: -2px; background: var(--tenue); border-radius: 2px; transition: left .08s; }
+#accScala .tacche { position: absolute; left: 0; right: 0; top: 40px; display: flex; justify-content: space-between; font-size: 12px; color: var(--tenue); }
+#accCents { font: 500 26px "EB Garamond", serif; margin-top: 6px; }
+.corde { display: flex; gap: 8px; margin-top: 18px; flex-wrap: wrap; justify-content: center; }
+.corde button { min-width: 64px; }
+.corde button.vicina { border-color: var(--accento); box-shadow: 0 0 0 1px var(--accento); }
+
+.metronomo { display: grid; place-items: center; text-align: center; gap: 14px; padding: 16px 0; }
+#metBattiti { display: flex; gap: 12px; }
+#metBattiti i { width: 26px; height: 26px; border-radius: 50%; background: var(--carta2); border: 1px solid var(--filo); display: block; }
+#metBattiti i.acceso { background: var(--accento); }
+#metBattiti i.primo { width: 32px; height: 32px; }
+
+dialog { border: 1px solid var(--filo); border-radius: 12px; background: var(--foglio); color: var(--inchiostro); box-shadow: 0 10px 40px rgba(0,0,0,.25); padding: 22px 26px; max-width: min(92vw, 640px); }
+dialog::backdrop { background: rgba(40,30,20,.35); }
+dialog h2 { margin: 0 0 10px; }
+dialog .riga { display: flex; gap: 10px; align-items: center; margin: 12px 0; flex-wrap: wrap; }
+#dlgOriginale { max-width: 96vw; width: 960px; padding: 12px; }
+#dlgOriginale img { width: 100%; display: block; margin-bottom: 8px; }
+.esito { font-weight: 600; }
+ol.crediti { font-size: 14px; padding-left: 22px; max-height: 40vh; overflow-y: auto; }
+ol.crediti li { margin: 6px 0; }
+a { color: var(--accento); }
+#selBrano { max-width: 100%; min-width: 0; padding: 6px 8px; font-size: 16px; }
+/* profili netti: angoli vivi, niente ombre morbide */
+button, input, select, .bpm, .gruppo, #leggio, .foglio, .carta, dialog, .misure div, .barra, #livello, #metBattiti i { border-radius: 0 !important; }
+#leggio, .foglio, dialog { box-shadow: none !important; }
+@media (pointer: coarse) {
+  button { min-height: 44px; padding: .5em 1em; }
+  nav button { min-height: 44px; }
+  input[type=number] { min-height: 40px; font-size: 16px; }
+  select { min-height: 40px; font-size: 16px; }
+  .bpm button { min-width: 44px; }
+}
+@media (max-width: 600px) {
+  header { padding: 8px 12px; gap: 8px; }
+  header h1 { font-size: 19px; flex: 1 1 auto; }
+  header h1 small { display: none; }
+  #selBrano { order: 10; flex: 1 1 100%; }
+  #livello { width: 50px; }
+  #livelloTesto { display: none; }
+  nav { padding: 0 6px; }
+  nav button { padding: 9px 10px 7px; }
+  #testa h2 { font-size: 22px; }
+  #testa { gap: 8px; }
+  .comandi { gap: 8px; }
+  .comandi .spazio { display: none; }
+  #btnAscolta, #btnSuona, .comandi .btnFerma { flex: 1 1 30%; }
+  .legenda { font-size: 12px; gap: 8px; }
+  .foglio { padding: 12px 14px; }
+  .campo > span:first-child { width: 100%; }
+  #accNota { font-size: 80px; }
+  #conta { font-size: 64px; }
+  dialog { padding: 16px; max-width: 100vw; }
+  table.passaggi { font-size: 13px; }
+  .barra { width: 60px; }
+}
+@media (max-width: 860px) {
+  .allena { grid-template-columns: 1fr; }
+  main { padding: 12px 16px 30px; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>Leggio <small id="sottotitolo"></small></h1>
+  <select id="selBrano" title="Scegli il brano" aria-label="Brano"></select>
+  <span class="spazio"></span>
+  <span id="livelloTesto">microfono spento</span>
+  <div id="livello"><i></i></div>
+  <button id="btnCrediti">Crediti</button>
+  <button id="btnImpostazioni">Impostazioni</button>
+</header>
+<div id="bandaDemo" hidden>Modalità <b>demo</b>: qui suona una chitarra finta, con errori voluti, e l'app giudica quella; il microfono è spento.
+  Per suonare tu: <a href="./">esci dalla demo</a>.</div>
+<nav id="schede">
+  <button data-p="brano" class="scelto">Brano</button>
+  <button data-p="passaggi">Passaggi difficili</button>
+  <button data-p="allena">Allenamento</button>
+  <button data-p="accordatore">Accordatore</button>
+  <button data-p="metronomo">Metronomo</button>
+</nav>
+<main>
+  <section id="zonaLeggio">
+    <div id="testa"><h2 id="titolo">…</h2><span class="meta" id="meta"></span><button id="btnOriginale">Fonte e licenza</button></div>
+
+    <!-- comandi del pannello Brano -->
+    <div class="comandi pannello" data-p="brano">
+      <div class="bpm"><button data-bpm="-2">−</button><input class="campoBpm" id="bpmBrano" type="number" min="20" max="200" value="50"><button data-bpm="2">+</button><span class="unitaBattito" data-testo="U al minuto">♩. al minuto</span></div>
+      <label class="scelta">battute <input id="daBatt" type="number" min="1" value="1"> – <input id="aBatt" type="number" min="1" value="33"></label>
+      <label class="scelta"><input type="checkbox" id="metronomo" checked> metronomo mentre suono</label>
+      <label class="scelta">attacco <select id="attacco"><option value="1">1 battuta</option><option value="2">2 battute</option></select></label>
+      <span class="spazio"></span>
+      <button id="btnAscolta">Ascolta</button>
+      <button id="btnSuona" class="primario">Suona e valuta</button>
+      <button class="btnFerma" disabled>Ferma</button>
+    </div>
+
+    <div id="leggio">
+      <div id="striscia"><div id="rullo"><div id="osmd"></div><svg id="segni"></svg></div><div id="testina"></div><div id="conta"></div></div>
+      <div id="stato"><span id="statoTesto">Preparo la partitura…</span></div>
+    </div>
+    <div class="legenda"><span><i style="background:var(--bene)"></i>a tempo (entro 25 ms)</span><span><i style="background:#7aa36f"></i>bene (50 ms)</span><span><i style="background:var(--quasi)"></i>impreciso (90 ms)</span><span><i style="background:var(--male)"></i>fuori tempo o mancata</span><span>× nota sbagliata</span></div>
+  </section>
+
+  <section class="pannello" data-p="brano">
+    <div id="resoconto" class="foglio" hidden></div>
+  </section>
+
+  <section class="pannello" data-p="passaggi" hidden>
+    <div class="foglio">
+      <h3>Passaggi difficili</h3>
+      <p class="nota">Vengono dagli errori delle ultime prove del brano («Suona e valuta» nella scheda Brano): per ogni nota
+        l'app tiene il punteggio di tempo e di altezza, li media sulle ultime cinque prove e cerca i tratti dove si sbaglia di più.
+        Ogni passaggio finisce sulla nota d'arrivo, quella dopo l'ultimo errore: è da lì che parte l'allenamento a ritroso.</p>
+      <div id="mappaErrori"></div>
+      <div id="elencoPassaggi"></div>
+    </div>
+  </section>
+
+  <section class="pannello" data-p="allena" hidden>
+    <div class="allena">
+      <div class="foglio">
+        <h3>Il passaggio</h3>
+        <div class="campo"><span>battute</span><input id="pDa" type="number" min="1" value="1"> – <input id="pA" type="number" min="1" value="1">
+          <label class="scelta"><input type="checkbox" id="pArrivo" checked> più la nota d'arrivo</label></div>
+        <div class="campo"><span>da punto a punto</span>
+          <span class="punto">inizio <span class="gruppo"><button data-sp="0,-1" title="inizio una nota prima">◀</button><button data-sp="0,1" title="inizio una nota dopo">▶</button></span></span>
+          <span class="punto">fine <span class="gruppo"><button data-sp="1,-1" title="fine una nota prima">◀</button><button data-sp="1,1" title="fine una nota dopo">▶</button></span></span></div>
+        <p class="nota" id="pPunti">Tocca sulla partitura la prima nota del passaggio, poi l'ultima.</p>
+        <p class="nota" id="pDescr"></p>
+        <h4>Modo</h4>
+        <div class="gruppo" id="modi">
+          <button data-m="destra">Mano destra</button><button data-m="sinistra">Mano sinistra</button><button data-m="insieme" class="scelto">Insieme</button>
+        </div>
+        <p class="descrModo" id="descrModo"></p>
+        <div id="rigaFasi"><div class="gruppo" id="fasi"><button data-f="dita" class="scelto">1 · Le dita</button><button data-f="tempo">2 · Il tempo</button></div>
+          <p class="descrModo" id="descrFase"></p></div>
+        <p class="nota" id="avvisoTaratura" hidden style="color:var(--male)">Il ritardo del microfono non è ancora misurato: fallo in <b>Impostazioni</b>, sennò i giudizi di tempo sono spostati.</p>
+        <div class="campo"><span>tempo</span><div class="bpm"><button data-bpm="-2">−</button><input class="campoBpm" id="bpmAllena" type="number" min="20" max="200" value="40"><button data-bpm="2">+</button><span class="unitaBattito" data-testo="U">♩.</span></div></div>
+        <div class="campo"><span>per aggiungere una nota</span><select id="richiesti"><option>2</option><option selected>3</option><option>4</option><option>5</option></select> giri riusciti di fila</div>
+        <div class="campo"><span>tolleranza (fase 2)</span><select id="tolleranza"><option value="5">stretta</option><option value="8" selected>media</option><option value="12">larga</option></select></div>
+        <p class="nota" style="margin-top:-4px">Vale nella fase del tempo ed è una parte del battito: più è lento, più è larga.</p>
+        <div class="campo"><span>metronomo</span><label class="scelta"><input type="checkbox" id="metAllena" checked> anche mentre suono</label>
+          <label class="scelta"><input type="checkbox" id="suddivisione"> crome</label></div>
+        <div class="azioni"><button class="primario" id="btnAllena">Comincia</button><button class="btnFerma" disabled>Ferma</button><button id="btnAscoltaPass">Ascolta il tratto</button></div>
+      </div>
+      <div class="foglio">
+        <h3>A ritroso</h3>
+        <p class="nota">Si parte dall'ultima nota del passaggio. Dopo i giri riusciti di fila (note giuste e nessuna mancata; nella fase del tempo anche il ritmo)
+          si aggiunge la nota prima, poi quella ancora prima, fino all'inizio del passaggio. I giri si susseguono da soli: basta suonare.</p>
+        <div id="catena">—</div>
+        <div id="pallini"></div>
+        <div id="esitoGiro"></div>
+        <ol id="diarioAllena" reversed></ol>
+      </div>
+    </div>
+  </section>
+
+  <section class="pannello" data-p="accordatore" hidden>
+    <div class="foglio accordatore">
+      <div id="accNota">–</div>
+      <div id="accHz">suona una corda</div>
+      <div id="accScala"><div class="linea"></div><div class="centro"></div><div class="ago" id="accAgo"></div>
+        <div class="tacche"><span>−50</span><span>−25</span><span>0</span><span>+25</span><span>+50</span></div></div>
+      <div id="accCents"></div>
+      <div class="corde" id="accCorde"></div>
+      <p class="nota">Tocca una corda per sentire la nota di riferimento. La di riferimento: <span id="accLa"></span> Hz (si cambia in Impostazioni).</p>
+      <div class="azioni"><button id="btnAccorda" class="primario">Accendi l'accordatore</button></div>
+    </div>
+  </section>
+
+  <section class="pannello" data-p="metronomo" hidden>
+    <div class="foglio metronomo">
+      <div class="bpm"><button data-bpm="-1">−</button><input class="campoBpm" id="metBpm" type="number" min="20" max="240" value="60"><button data-bpm="1">+</button><span id="metUnita">al minuto</span></div>
+      <div id="metBattiti"></div>
+      <div class="comandi" style="justify-content:center">
+        <label class="scelta">battiti per battuta <select id="metMisura"><option>1</option><option>2</option><option>3</option><option selected>4</option><option>6</option></select></label>
+        <label class="scelta">suddivisione <select id="metSudd"><option value="1">nessuna</option><option value="2">2</option><option value="3" selected>3</option><option value="4">4</option></select></label>
+        <button id="metTap">Batti il tempo</button>
+      </div>
+      <div class="azioni"><button class="primario" id="metVia">Avvia</button></div>
+      <p class="nota">Il click è acuto (3–4 kHz) apposta: l'ascolto delle note non lo sente.</p>
+    </div>
+  </section>
+</main>
+
+<dialog id="dlgMic">
+  <h2>Il microfono</h2>
+  <p>Per giudicare quello che suoni, il Leggio ascolta la chitarra con il microfono di questo dispositivo.</p>
+  <ul class="nota">
+    <li>Il suono resta qui: non viene registrato né mandato da nessuna parte.</li>
+    <li>Le tue prove e i progressi stanno solo in questo browser.</li>
+    <li>Ora il browser ti chiederà il permesso: rispondi <b>Consenti</b>.</li>
+    <li>Telefono vicino alla chitarra, stanza silenziosa. Su iPhone togli il silenzioso per sentire il metronomo.</li>
+  </ul>
+  <div class="azioni"><button class="primario" id="btnMicSi">Ho capito, accendi il microfono</button></div>
+</dialog>
+
+<dialog id="dlgCrediti">
+  <h2>Crediti</h2>
+  <div id="crQuesto"></div>
+  <h3>Il Leggio</h3>
+  <p class="nota">App libera per studenti di chitarra classica: codice con licenza <a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank" rel="noopener">GPL 3</a>,
+    sorgenti su <a href="https://github.com/gionci/leggio" target="_blank" rel="noopener">github.com/gionci/leggio</a>.
+    Partitura disegnata con <a href="https://opensheetmusicdisplay.org" target="_blank" rel="noopener">OpenSheetMusicDisplay</a> (BSD-3).</p>
+  <h3>I brani</h3>
+  <p class="nota">Tutti da <a href="https://www.mutopiaproject.org" target="_blank" rel="noopener">Mutopia Project</a>: musica di pubblico dominio
+    incisa da volontari con LilyPond; qui convertita in MusicXML e controllata nota per nota. I MusicXML della biblioteca
+    (<a href="https://github.com/gionci/leggio-brani" target="_blank" rel="noopener">github.com/gionci/leggio-brani</a>) sono distribuiti con licenza
+    <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a>, rispettando la licenza di ogni brano indicata qui sotto.</p>
+  <ol id="crElenco" class="crediti"></ol>
+  <div class="azioni"><button class="primario" onclick="this.closest('dialog').close()">Chiudi</button></div>
+</dialog>
+
+<dialog id="dlgImpostazioni">
+  <h2>Impostazioni</h2>
+  <div class="riga"><label>Microfono <select id="selMic"></select></label></div>
+  <p class="nota">Con un microfono esterno o una scheda audio: sceglila qui e regola il guadagno in modo che la nota più forte stia sotto il rosso. Sul telefono va bene il microfono interno.</p>
+  <div class="riga"><label>La di riferimento <select id="selLa"><option>440</option><option>442</option><option>443</option><option>415</option></select> Hz</label></div>
+  <h3>1. Silenzio</h3>
+  <p class="nota">Tre secondi senza suonare: l'app impara il rumore di fondo della stanza e del microfono.</p>
+  <div class="riga"><button id="btnSilenzio">Misura il silenzio</button><span id="esSilenzio" class="esito"></span></div>
+  <h3>2. Ritardo</h3>
+  <p class="nota">Pizzica una corda a vuoto insieme al click, per 8 colpi (dopo 4 di attacco). L'app misura il ritardo fra il suono e il microfono e lo toglie dai giudizi.</p>
+  <div class="riga"><button id="btnRitardo">Misura il ritardo</button><span id="esRitardo" class="esito"></span></div>
+  <h3>Dati</h3>
+  <div class="riga"><button id="btnScarica">Scarica prove e allenamenti</button><button id="btnAzzera">Cancella le prove di questo brano</button></div>
+  <div class="azioni"><button class="primario" onclick="this.closest('dialog').close()">Fatto</button></div>
+</dialog>
+
+<script src="vendor/opensheetmusicdisplay.min.js"></script>
+<script src="analisi.js"></script>
+<script src="brano.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
