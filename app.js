@@ -220,10 +220,8 @@ function muoviPendolo(p) {
 }
 // in che battito della battuta cade q (quarti), e quanti battiti ha la battuta
 function battitoDi(q) {
-  let m = B.misure[0];
-  for (const x of B.misure) if (x[1] <= q + 1e-6) m = x;
-  const n = Math.max(1, Math.round(m[2] / battito()));
-  return [Math.min(n - 1, Math.round((q - m[1]) / battito())), n];
+  const n = B.battitiPerMisura;
+  return [Math.max(0, Math.min(n - 1, Math.round((q - battereDi(q)) / battito()))), n];
 }
 
 // corda pizzicata (Karplus-Strong). suoni: [[midi, inizio s, fine s]]
@@ -518,13 +516,12 @@ async function ascolta(i0, i1, bpm, modo) {
   if (corsa) ferma();
   fermaMetronomo();
   const sq = 60 / bpm / battito(), q0 = B.attacchi[i0].q, qFine = B.attacchi[i1].q + B.attacchi[i1].durata;
-  const conta = B.battitiPerMisura;
-  const qc0 = Math.ceil(q0 / battito() - 1e-6) * battito() - conta * battito();
+  const qc0 = inizioConta(q0, { misure: 1 });
   const t0 = ctx.currentTime + 0.25, tq = q => t0 + (q - qc0) * sq;
   const sorgenti = [];
   for (let q = qc0; q < q0 - 1e-6; q += battito()) sorgenti.push(suonaBuffer(bufferClick(primoDellaBattuta(q) ? 2 : 1), tq(q)));
   fermaPendolo("pendolo");
-  for (let q = qc0; q < qFine - 1e-6; q += battito()) battitoVisto("pendolo", tq(q), ...(q < q0 - 1e-6 ? [Math.round((q - qc0) / battito()) % conta, conta] : battitoDi(q)));
+  for (let q = qc0; q < qFine - 1e-6; q += battito()) battitoVisto("pendolo", tq(q), ...battitoDi(q));
   let suoni;
   if (modo === "destra") suoni = B.attacchi.slice(i0, i1 + 1).flatMap(a => noteAttese(a, "destra").map(m => [m, (a.q - q0) * sq, (a.q - q0 + a.durata) * sq]));
   else suoni = B.suoni.filter(([, s]) => s >= q0 - 1e-6 && s <= B.attacchi[i1].q + 1e-6).map(([m, s, f]) => [m, (s - q0) * sq, (Math.min(f, qFine + 2) - q0) * sq]);
@@ -536,7 +533,28 @@ async function ascolta(i0, i1, bpm, modo) {
   comandi(true);
   anima();
 }
-function primoDellaBattuta(q) { return B.misure.some(m => Math.abs(m[1] - q) < 1e-4); }
+// ---------- metrica: dove cade il battere, anche prima dell'inizio e nelle anacrusi ----------
+// Una battuta più corta del metro all'inizio del brano (anacrusi) finisce sul battere della prima battuta piena:
+// il suo battere «virtuale» sta una battuta intera prima. Prima del brano si continua all'indietro a battute intere.
+const lungMisura = () => B.metro[0] * 4 / B.metro[1];
+function battereDi(q) {
+  const L = lungMisura(), m0 = B.misure[0];
+  const corta0 = m0[2] < L - 1e-6;
+  const ancora = corta0 ? m0[1] + m0[2] : m0[1];             // primo battere vero
+  if (q < ancora - 1e-6) return ancora - Math.ceil((ancora - q) / L - 1e-6) * L;
+  let m = m0;
+  for (const x of B.misure) if (x[1] <= q + 1e-6) m = x;
+  return m[1];
+}
+function primoDellaBattuta(q) { return Math.abs(battereDi(q) - q) < 1e-4; }
+// l'inizio del conto: «misure» battute intere prima del battere della battuta in cui si parte (poi i battiti fino
+// alla partenza: in levare o acefala si contano anche quelli), oppure almeno «battiti» battiti, sempre sulla griglia
+function inizioConta(q0, { misure = 0, battiti = 0 }) {
+  const b = battito();
+  if (misure) return battereDi(q0) - misure * lungMisura();
+  const q = q0 - battiti * b + 1e-6, bt = battereDi(q);
+  return bt + Math.floor((q - bt) / b) * b;
+}
 
 function comandi(inCorsa) {
   for (const b of document.querySelectorAll(".btnFerma")) b.disabled = !inCorsa && !al;
@@ -555,7 +573,7 @@ async function giroATempo(opz) {
   const sr = ctx.sampleRate, b = battito(), sq = 60 / bpm / b;
   const q0 = B.attacchi[i0].q, ultimo = B.attacchi[i1];
   const qFine = ultimo.q + Math.min(ultimo.durata, b);
-  const qc0 = Math.ceil(q0 / b - 1e-6) * b - opz.conta * b;
+  const qc0 = inizioConta(q0, opz.conta);
   // la chitarra finta si prepara prima di fissare l'inizio: il calcolo può durare
   let demoBuf = null;
   if (DEMO) {
@@ -588,7 +606,7 @@ async function giroATempo(opz) {
     if (j % passi && q >= q0 - 1e-6 && !opz.sudd) continue;     // le crome dell'attacco lento non proseguono
     const tipo = j % passi ? 0 : primoDellaBattuta(q) ? 2 : 1;
     sorgenti.push(suonaBuffer(bufferClick(tipo), tq(q)));
-    if (tipo) battitoVisto("pendolo", tq(q), ...(q < q0 - 1e-6 ? [Math.round((q - qc0) / b) % B.battitiPerMisura, B.battitiPerMisura] : battitoDi(q)));
+    if (tipo) battitoVisto("pendolo", tq(q), ...battitoDi(q));
   }
   if (DEMO) {
     const s = ctx.createBufferSource();
@@ -689,6 +707,30 @@ function giudicaPronti(c, tutti) {
   });
 }
 
+// il conto iniziale: un cerchio diviso nei battiti della battuta (il primo in alto, in senso orario).
+// La lancetta gira col tempo; i battiti passati si riempiono; la partenza è il segno rosso dentro il cerchio,
+// al suo posto nella battuta (in levare, a metà battito se acefala). Si parte quando la lancetta lo raggiunge.
+// I puntini al centro: quanti giri mancano ancora prima di quello della partenza.
+function disegnaConta(c, q) {
+  const n = B.battitiPerMisura, L = lungMisura(), b = battito();
+  const bt = battereDi(q), f = (q - bt) / L, bt0 = battereDi(c.q0), f0 = (c.q0 - bt0) / L;
+  const giri = Math.max(0, Math.round((bt0 - bt) / L));
+  const R = 70, P = (fr, r) => [100 + r * Math.sin(2 * Math.PI * fr), 100 - r * Math.cos(2 * Math.PI * fr)].map(v => v.toFixed(1)).join(" ");
+  const fatti = Math.floor((q - bt) / b + 1e-6);
+  let svg = "";
+  for (let i = 0; i < n; i++) {
+    const a = i / n, z = (i + 1) / n;
+    const cl = giri === 0 && a >= f0 - 1e-6 ? "dopo" : i < fatti ? "fatto" : i === fatti ? "ora" : "";
+    svg += `<path class="${cl} ${i === 0 ? "primo" : ""}" d="M100 100 L${P(a, R)} A${R} ${R} 0 ${z - a > 0.5 ? 1 : 0} 1 ${P(z, R)} Z"/>`;
+  }
+  if (giri === 0) svg += `<line class="via" x1="100" y1="100" x2="${P(f0, R + 14).split(" ")[0]}" y2="${P(f0, R + 14).split(" ")[1]}"/><circle class="via" cx="${P(f0, R + 14).split(" ")[0]}" cy="${P(f0, R + 14).split(" ")[1]}" r="7"/>`;
+  else svg += `<circle class="via vuoto" cx="${P(f0, R + 14).split(" ")[0]}" cy="${P(f0, R + 14).split(" ")[1]}" r="7"/>`;
+  svg += `<line class="lancetta" x1="100" y1="100" x2="${P(f, R - 4).split(" ")[0]}" y2="${P(f, R - 4).split(" ")[1]}"/><circle class="perno" cx="100" cy="100" r="6"/>`;
+  for (let g = 0; g < giri; g++) svg += `<circle class="giro" cx="${100 + (g - (giri - 1) / 2) * 14}" cy="128" r="4"/>`;
+  c.svgConta = c.svgConta || (conta => { conta.innerHTML = '<svg viewBox="0 0 200 200"></svg>'; return conta.firstChild; })($("conta"));
+  c.svgConta.innerHTML = svg;
+}
+
 function anima() {
   const c = corsa;
   if (!c) return;
@@ -697,9 +739,8 @@ function anima() {
   const q = c.q0 + (ora - c.tPrimo) / c.sq;
   posiziona(Math.max(c.qc0, q));
   const conta = $("conta");
-  if (ora < c.tPrimo && ora >= c.tq(c.qc0)) {
-    conta.style.display = "flex"; conta.textContent = Math.ceil((c.tPrimo - ora) / (c.sq * battito()) - 1e-3);
-  } else conta.style.display = "none";
+  if (ora < c.tPrimo && ora >= c.tq(c.qc0) - 0.3) { conta.style.display = "flex"; disegnaConta(c, Math.max(c.qc0, q)); }
+  else conta.style.display = "none";
   if (c.tipo === "giro") {
     giudicaPronti(c, false);
     for (const a of c.giudizio === "relativo" ? [] : c.attesi) {
@@ -722,7 +763,7 @@ function smettiCorsa() {
   for (const s of c.sorgenti || []) { try { s.stop(); } catch (e) { /* già finito */ } }
   if (c.ascolta) ascoltatori = ascoltatori.filter(f => f !== c.ascolta);
   fermaPendolo("pendolo");
-  $("conta").style.display = "none";
+  $("conta").style.display = "none"; $("conta").innerHTML = "";
   segnaAttesa(null);
   comandi(false);
   return c;
@@ -908,7 +949,7 @@ async function suonaBrano() {
   $("resoconto").hidden = true;
   const bpm = leggiBpm("bpmBrano");
   const tInizio = performance.now();
-  const r = await giroATempo({ i0, i1, bpm, modo: "insieme", conta: +$("attacco").value * B.battitiPerMisura, metronomo: $("metronomo").checked, sudd: false });
+  const r = await giroATempo({ i0, i1, bpm, modo: "insieme", conta: { misure: +$("attacco").value }, metronomo: $("metronomo").checked, sudd: false });
   if (!r) { $("statoTesto").textContent = "Interrotto."; posiziona(B.attacchi[i0].q); return; }
   resocontoBrano(r, i0, i1, (performance.now() - tInizio) / 1000);
 }
@@ -1190,7 +1231,7 @@ async function avviaAllenamento() {
       esito.buchi = r.buchi;
     } else {
       const toll = tollMs(al.bpm, al.pct) / 1000;
-      const r = await giroATempo({ i0: da, i1: al.i1, bpm: al.bpm, modo: al.modo, conta: 2, metronomo: $("metAllena").checked, sudd: $("suddivisione").checked,
+      const r = await giroATempo({ i0: da, i1: al.i1, bpm: al.bpm, modo: al.modo, conta: { battiti: 2 }, metronomo: $("metAllena").checked, sudd: $("suddivisione").checked,
         giudizio: al.fase === "dita" ? "relativo" : "assoluto", toll });
       if (!r || !al) break;
       esito = valutaGiro(r, al.fase === "dita" ? null : toll * 1000);

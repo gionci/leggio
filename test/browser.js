@@ -85,6 +85,35 @@ fs.mkdirSync(OUT, { recursive: true });
     await val(`document.querySelector('#dlgMic').close(); 1`);
   }
 
+  // ---------- 2b. conto iniziale: anacrusi, partenza acefala, partenza a metà battuta ----------
+  // Il conto deve partire da un battere e arrivare alla nota d'inizio nella sua posizione nella battuta.
+  for (const [b, desc, scelta] of [["giuliani_op50_no02", "anacrusi", "0"], ["sor_op35_no07", "acefala (dentro il battito)", "B.attacchi.findIndex(a => a.misura === 3 && Math.abs(a.q - B.misure[2][1] - 0.25) < 1e-6)"],
+    ["sor_op35_no07", "metà battuta (allenamento, 2 battiti)", "B.attacchi.findIndex(a => a.misura === 2 && a.q - B.misure[1][1] > 2)"]]) {
+    errori = [];
+    await schermo(390, 844, true);
+    await cmd("Page.navigate", { url: BASE + "?demo&brano=" + b });
+    await aspetta(`window.PRONTO === true && !!B`);
+    const r = JSON.parse(await val(`(() => { const i = ${scelta}, q0 = B.attacchi[i].q, allena = ${desc.startsWith("metà") ? "true" : "false"};
+      const qc0 = inizioConta(q0, allena ? { battiti: 2 } : { misure: 1 });
+      const colpi = []; for (let q = qc0; q < q0 - 1e-6; q += battito()) colpi.push((primoDellaBattuta(q) ? "1" : "·") + "@" + +q.toFixed(3));
+      return JSON.stringify({ i, q0, qc0, prima: B.misure[0], colpi, battereQ0: battereDi(q0), metro: B.metro }); })()`));
+    const ok = primo => r.colpi.length && r.colpi[0].startsWith(primo);
+    const giusto = desc.startsWith("metà") ? r.colpi.length >= 2 : ok("1") && Math.abs(r.qc0 - (r.battereQ0 - r.metro[0] * 4 / r.metro[1])) < 1e-6;
+    console.log(`conto ${b} (${desc}): parte a q=${r.q0}, prima battuta ${JSON.stringify(r.prima)}, battere ${r.battereQ0}; colpi ${r.colpi.join(" ")} ${giusto ? "ok" : "← SBAGLIATO"}`);
+    if (!giusto) falliti++;
+    // il cerchio durante il conto
+    await val(`(() => { const i = ${scelta}; if (${desc.startsWith("metà") ? "true" : "false"}) giroATempo({ i0: i, i1: i + 6, bpm: 40, modo: "insieme", conta: { battiti: 2 }, metronomo: true, sudd: false });
+      else { const m = B.attacchi[i].misura; document.querySelector('#daBatt').value = m; document.querySelector('#aBatt').value = m + 1; document.querySelector('#bpmBrano').value = 40; suonaBrano(); } return 1; })()`);
+    await aspetta(`!!corsa`, 10000);
+    const t0 = await val(`corsa ? corsa.tPrimo - ctx.currentTime : 0`);
+    await sleep(Math.max(0, t0 * 1000 - (desc.startsWith("metà") ? 700 : 1700)));
+    await foto(`conta_${b}_${desc.split(" ")[0]}`);
+    const vis = await val(`getComputedStyle(document.querySelector('#conta')).display === 'flex' && !!document.querySelector('#conta svg path')`);
+    console.log(`   cerchio durante il conto: ${vis ? "visibile" : "NON VISIBILE"}`);
+    if (!vis || errori.length) { falliti++; console.log("   errori:", errori.slice(0, 3)); }
+    await val(`ferma(); 1`);
+  }
+
   // ---------- 3. demo su tre brani ----------
   if (!process.env.VELOCE) for (const b of DEMO_BRANI) {
     errori = [];

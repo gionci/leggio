@@ -25,6 +25,13 @@ stesso motore d'ascolto del Leggio Mertz (`~/Work/mertz-leggio`).
   ascolta, si prova o ci si allena, e nella scheda Metronomo, una pallina rimbalza di battito in battito e tocca terra sul
   colpo. Le celle sono i battiti della battuta (la prima bordata e rossa quando tocca); niente lampi. Segue l'orologio audio
   meno la latenza d'uscita. Sul telefono la pagina scorre da sola per mostrarla.
+- **Conto iniziale metrico** (2/11): il conto parte sempre da un battere e arriva alla prima nota al suo posto nella battuta.
+  Brano: «attacco 1/2 battute» = battute intere prima del battere della battuta di partenza, più i battiti fino alla nota
+  (partenza in levare, acefala o dentro il battito). Allenamento: almeno 2 battiti, sulla griglia dei battiti.
+  Anacrusi: la battuta corta d'inizio ha il battere «virtuale» una battuta intera prima della prima battuta piena (`battereDi`).
+  Al posto dei numeri, un **cerchio diviso** nei battiti della battuta (il primo in alto, bordo spesso): una lancetta gira
+  col tempo, i battiti passati si riempiono, la **partenza** è il segno rosso dentro/sul cerchio nel suo punto della battuta
+  (vuoto finché manca ancora un giro; i puntini al centro contano i giri che mancano). Si parte quando la lancetta lo raggiunge.
 - **Crediti**: fonte, trascrittore e licenza di ogni brano; «Fonte e licenza» accanto al titolo per il brano aperto.
 
 ## Architettura
@@ -84,7 +91,8 @@ Prima volta con la chitarra: **Impostazioni** → microfono → «Misura il sile
 `browser.js` (Chromium headless, protocollo DevTools, nessuna libreria): carica **tutti** i brani di `elenco.json` e controlla
 che si preparino e si disegnino senza errori; fotografa a 390 px (telefono) e 1400 px (desktop) e controlla che la pagina non
 scorra di lato; poi in `?demo` (chitarra sintetica con errori, microfono spento) prova tre brani: due prove valutate,
-passaggi difficili, allenamento a ritroso. `VELOCE=1` salta la demo, `BRANI=a,b,c` sceglie i tre brani.
+passaggi difficili, allenamento a ritroso; controlla anche il conto iniziale (anacrusi di Giuliani op. 50 n. 2, partenza dentro
+il battito e a metà battuta nel Sor) e che il cerchio si veda. `VELOCE=1` salta la demo, `BRANI=a,b,c` sceglie i tre brani.
 
 Collaudo del 2/11/2026: 58/58 brani, pagina larga 390/1400 px senza scorrimento laterale, demo su Sor op. 35 n. 7,
 Carcassi op. 60 n. 3, Giuliani op. 50 n. 1 (punteggi 79–85, catena a ritroso che avanza), accordatore < 0,2 cent.
