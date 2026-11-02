@@ -148,6 +148,12 @@ fs.mkdirSync(OUT, { recursive: true });
     await foto(`demo_${b}_3_allena`);
     console.log(`   allenamento: ${await val(`document.querySelector('#catena').innerText + ' / ' + document.querySelector('#esitoGiro').innerText`)} | ${(await val(`document.querySelector('#diarioAllena').innerText`)).replace(/\n+/g, " | ").slice(0, 200)}`);
     await val(`fermaAllenamento(); 1`);
+    await sleep(800);
+    // fase a tempo (mano destra): tolleranza e scostamento imparato
+    await val(`scegliModo('destra'); avviaAllenamento(); 1`);
+    await sleep(22000);
+    console.log(`   mano destra a tempo: ${await val(`document.querySelector('#catena').innerText.replace(/\\n/g, ' ') + ' / ' + document.querySelector('#esitoGiro').innerText`)} | scostamento imparato ${await val(`Math.round(imp.scostamento * 1000)`)} ms | ${(await val(`document.querySelector('#diarioAllena').innerText`)).replace(/\n+/g, " | ").slice(0, 240)}`);
+    await val(`fermaAllenamento(); 1`);
     const okDemo = res.length > 20 && !errori.length;
     if (!okDemo) { falliti++; console.log("   ERRORI:", errori.slice(0, 5)); }
   }

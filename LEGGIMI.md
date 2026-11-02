@@ -20,6 +20,13 @@ stesso motore d'ascolto del Leggio Mertz (`~/Work/mertz-leggio`).
 - **Allenamento a ritroso**: si parte dall'ultima nota del passaggio e si aggiunge una nota alla volta dopo N giri riusciti.
   Modi *mano destra* (stesso ritmo sulle corde a vuoto, con l'esagramma p-i-m-a), *mano sinistra* (senza tempo, l'app
   aspetta la nota giusta), *insieme* (prima le dita, poi il tempo).
+- **Precisione** (2/11, dopo le prime prove: riuscire 3 volte di fila era troppo difficile): nell'allenamento uno slider
+  **Drunk · Human · Robot**, dal più largo al più esigente. Vale per le note a tempo (fase 2 di *insieme* e *mano destra*).
+  La tolleranza è una parte del battito (Drunk 30%, Human ~12%, Robot 5%, scala geometrica) con un minimo in ms
+  (120 / ~65 / 35), mai oltre il 40% della distanza dalla nota vicina. Esempio a 60 battiti al minuto: ±300 / ±122 / ±50 ms.
+  In più l'app **impara lo scostamento costante** (latenza del telefono, abitudine di chi suona): mediana degli scarti di
+  ogni giro a tempo, pesata 30%, entro ±150 ms, salvata nel dispositivo (`imp.scostamento`), e la toglie prima di giudicare.
+  Fino a 2 colpi in più per giro (risonanze).
 - **Accordatore** (YIN) e **Metronomo** (click acuto che l'ascolto non sente).
 - **Battito da vedere** (2/11, richiesta dopo la prova su iPhone: il click si sente poco): sopra la partitura, mentre si
   ascolta, si prova o ci si allena, e nella scheda Metronomo, una pallina rimbalza di battito in battito e tocca terra sul

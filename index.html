@@ -163,6 +163,9 @@ dialog .riga { display: flex; gap: 10px; align-items: center; margin: 12px 0; fl
 .pendolo.grande { width: min(560px, 90vw); height: 112px; padding-top: 82px; border: 0; background: none; }
 .pendolo.grande .celle { height: 22px; }
 .pendolo.grande .pallina { top: 58px; width: 24px; height: 24px; }
+.precisione .cursore { flex: 1 1 220px; min-width: 200px; }
+.precisione input[type=range] { width: 100%; accent-color: var(--accento); height: 32px; margin: 0; }
+.precisione .nomi { display: flex; justify-content: space-between; font-size: 13px; color: var(--tenue); }
 ol.crediti { font-size: 14px; padding-left: 22px; max-height: 40vh; overflow-y: auto; }
 ol.crediti li { margin: 6px 0; }
 a { color: var(--accento); }
@@ -284,8 +287,12 @@ button, input, select, .bpm, .gruppo, #leggio, .foglio, .carta, dialog, .misure 
         <p class="nota" id="avvisoTaratura" hidden style="color:var(--male)">Il ritardo del microfono non è ancora misurato: fallo in <b>Impostazioni</b>, sennò i giudizi di tempo sono spostati.</p>
         <div class="campo"><span>tempo</span><div class="bpm"><button data-bpm="-2">−</button><input class="campoBpm" id="bpmAllena" type="number" min="20" max="200" value="40"><button data-bpm="2">+</button><span class="unitaBattito" data-testo="U">♩.</span></div></div>
         <div class="campo"><span>per aggiungere una nota</span><select id="richiesti"><option>2</option><option selected>3</option><option>4</option><option>5</option></select> giri riusciti di fila</div>
-        <div class="campo"><span>tolleranza (fase 2)</span><select id="tolleranza"><option value="5">stretta</option><option value="8" selected>media</option><option value="12">larga</option></select></div>
-        <p class="nota" style="margin-top:-4px">Vale nella fase del tempo ed è una parte del battito: più è lento, più è larga.</p>
+        <div class="campo precisione"><span>precisione</span>
+          <div class="cursore"><input type="range" id="precisione" min="0" max="100" step="1" value="50" list="tacchePrecisione" aria-label="Precisione richiesta">
+            <datalist id="tacchePrecisione"><option value="0"></option><option value="50"></option><option value="100"></option></datalist>
+            <div class="nomi"><span>Drunk</span><span>Human</span><span>Robot</span></div></div></div>
+        <p class="nota" id="precisioneTesto"></p>
+        <p class="nota" style="margin-top:-4px">Vale per le note a tempo (fase 2 e mano destra) ed è una parte del battito: più è lento, più è larga. Drunk perdona quasi tutto, Human è un buon musicista, Robot è da metronomo. Un anticipo o ritardo uguale su tutte le note (la latenza del telefono) l'app lo impara e non lo conta.</p>
         <div class="campo"><span>metronomo</span><label class="scelta"><input type="checkbox" id="metAllena" checked> anche mentre suono</label>
           <label class="scelta"><input type="checkbox" id="suddivisione"> crome</label></div>
         <div class="azioni"><button class="primario" id="btnAllena">Comincia</button><button class="btnFerma" disabled>Ferma</button><button id="btnAscoltaPass">Ascolta il tratto</button></div>

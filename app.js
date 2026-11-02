@@ -21,6 +21,11 @@ const imp = Object.assign({ mic: "", la: 440, minimo: null, ritardo: null, brano
   modo: "insieme", fase: "dita", richiesti: 3, tolleranza: 8, metAllena: true, sudd: false, progressi: {}, met: { bpm: 60, misura: 4, sudd: 3 } },
   mem.leggi("impostazioni", {}));
 if (imp.tolleranza > 20) imp.tolleranza = 8;           // prima era in ms fissi, ora in % del battito
+// 2/11: tolleranze più larghe (troppo difficile riuscire tre volte di fila): stretta/media/larga 5/8/12% -> 8/12/18%
+// precisione richiesta (slider): 0 = Drunk (larghissima) … 50 = Human … 100 = Robot (esigente)
+if (typeof imp.precisione !== "number") imp.precisione = 50;
+// scostamento costante imparato giro dopo giro (latenza del telefono, abitudine di chi suona): si toglie prima di giudicare
+if (typeof imp.scostamento !== "number") imp.scostamento = 0;
 const salvaImp = () => mem.scrivi("impostazioni", imp);
 const prove = mem.leggi("prove", {});            // id brano -> [{data, bpm, da, a, punteggio, tempo, note, err: {k: [e, ms, sbagliata]}}]
 const diario = mem.leggi("diario", []);          // allenamenti: [{data, brano, da, a, modo, bpm, giri, riusciti, completo}]
@@ -320,6 +325,7 @@ async function caricaBrano(id) {
   for (const b of $("accCorde").children) b.onclick = () => suonaCorda(+b.dataset.m);
   $("bpmBrano").value = imp.bpmBrano[id] || Math.round(B.tempo * 0.7);
   $("bpmAllena").value = imp.bpmAllena[id] || Math.round(B.tempo * 0.55);
+  etichetteTolleranza();
   $("statoTesto").textContent = "Preparo la partitura…";
   await disegnaPartitura();
   pulisciSegni();
@@ -1175,11 +1181,16 @@ function aggiornaTratto(daPassaggio) {
 const faseDi = modo => modo === "insieme" ? imp.fase : modo === "destra" ? "tempo" : "dita";
 const chiaveTratto = () => `${B.id}:${tratto[0]}-${tratto[1]}:${imp.modo}:${faseDi(imp.modo)}`;
 const chiaveAl = () => `${B.id}:${al.i0}-${al.i1}:${al.modo}:${al.fase}`;
-// tolleranza della fase del tempo: una percentuale del battito (più larga nel lento), mai sotto 40 ms
-const tollMs = (bpm, pct) => Math.max(40, Math.round(pct / 100 * 60 / bpm * 1000));
+// Dalla precisione (0..100) alla tolleranza: una parte del battito (Drunk 30%, Human ~12%, Robot 5%), con un minimo
+// in ms (Drunk 120, Human ~65, Robot 35): il pizzico, il rilevatore e l'audio dei telefoni hanno da soli qualche
+// decina di ms di incertezza. Scala geometrica: lo slider cambia in modo uniforme a orecchio.
+const tollPct = p => 30 * Math.pow(5 / 30, p / 100);
+const tollMin = p => Math.round(120 * Math.pow(35 / 120, p / 100));
+const tollMs = (bpm, p) => Math.max(tollMin(p), Math.round(tollPct(p) / 100 * 60 / bpm * 1000));
+const nomePrecisione = p => p < 25 ? "Drunk" : p <= 75 ? "Human" : "Robot";
 function etichetteTolleranza() {
-  const bpm = +$("bpmAllena").value || 40;
-  for (const o of $("tolleranza").options) o.textContent = `${{ 5: "stretta", 8: "media", 12: "larga" }[o.value]}: ±${tollMs(bpm, +o.value)} ms`;
+  const bpm = +$("bpmAllena").value || 40, p = +$("precisione").value;
+  $("precisioneTesto").innerHTML = `<b>${nomePrecisione(p)}</b> · ogni nota entro ±${tollMs(bpm, p)} ms a ${U()} ${bpm}`;
 }
 const DESCR_MODI = {
   destra: "Solo la mano destra, sulle corde a vuoto: stesso ritmo, stesse corde: sotto la partitura l'esagramma (sei righe = sei corde) con le dita p i m a e il ritmo. Il metronomo dà il tempo; si giudica il ritmo e se suona la corda giusta.",
@@ -1214,7 +1225,7 @@ async function avviaAllenamento() {
   const n = i1 - i0 + 1;
   // fase del tempo in «insieme»: tutto il passaggio (le dita ci sono già); in mano destra la catena è a tempo
   const k0 = fase === "tempo" && imp.modo === "insieme" ? n : 1;
-  al = { i0, i1, modo: imp.modo, fase, bpm, richiesti: +$("richiesti").value, pct: +$("tolleranza").value,
+  al = { i0, i1, modo: imp.modo, fase, bpm, richiesti: +$("richiesti").value, pct: imp.precisione,
     k: pr && !pr.completo && pr.bpm === bpm ? pr.k : k0, riusciti: 0, giri: 0, buoni: 0, inizio: new Date().toISOString(), giriFatti: [] };
   $("diarioAllena").innerHTML = "";
   comandi(false);
@@ -1234,6 +1245,7 @@ async function avviaAllenamento() {
       const r = await giroATempo({ i0: da, i1: al.i1, bpm: al.bpm, modo: al.modo, conta: { battiti: 2 }, metronomo: $("metAllena").checked, sudd: $("suddivisione").checked,
         giudizio: al.fase === "dita" ? "relativo" : "assoluto", toll });
       if (!r || !al) break;
+      if (al.fase !== "dita") imparaScostamento(r);
       esito = valutaGiro(r, al.fase === "dita" ? null : toll * 1000);
     }
     if (buchiNelGiro(esito)) { await new Promise(ok => setTimeout(ok, 1000)); continue; }
@@ -1249,24 +1261,35 @@ function buchiNelGiro(esito) {
   $("esitoGiro").textContent = "L'audio ha avuto un intoppo (computer carico): giro da rifare, non conta.";
   return true;
 }
+// Un anticipo o ritardo uguale su tutte le note non è un problema di tempo: è la latenza del telefono (che senza
+// taratura non si conosce) o l'abitudine di chi suona. Si impara come mediana degli scarti di ogni giro a tempo,
+// pesata 30%, entro ±150 ms, e si toglie prima di giudicare. Resta salvata per il dispositivo.
+function imparaScostamento(r) {
+  if (r.buchi) return;
+  const sc = r.righe.filter(x => x.scarto != null && Math.abs(x.scarto) < 0.25).map(x => x.scarto).sort((a, b) => a - b);
+  if (!sc.length) return;
+  const med = sc[Math.floor(sc.length / 2)];
+  imp.scostamento = Math.max(-0.15, Math.min(0.15, 0.7 * imp.scostamento + 0.3 * med));
+  salvaImp();
+}
 // toll null = fase delle dita: il tempo non si giudica (l'abbinamento relativo ha già scartato le note fuori posto)
 function valutaGiro(r, toll) {
   if (r.buchi) return { buchi: r.buchi };
   r.righe.forEach((x, i) => {
-    // fra note fitte la tolleranza non supera un terzo della distanza dalla vicina (sedicesimi lenti: ~80 ms)
+    // fra note fitte la tolleranza non supera il 40% della distanza dalla vicina (sennò si confonderebbe con lei)
     const vic = Math.min(i > 0 ? x.t - r.righe[i - 1].t : 9, i < r.righe.length - 1 ? r.righe[i + 1].t - x.t : 9);
-    x.toll = toll == null ? null : Math.max(40, Math.min(toll, vic * 1000 / 3));
+    x.toll = toll == null ? null : Math.max(tollMin(al ? al.pct : imp.precisione), Math.min(toll, vic * 1000 * 0.4));
   });
   for (const x of r.righe) {
     const a = B.attacchi[x.k], dove = `${a.note.length > 1 ? "l'accordo" : nome(x.note[0])} di b. ${a.misura}`;
     if (x.scarto == null) return { ok: false, perche: `non ho sentito ${dove}` };
-    const ms = Math.round(x.scarto * 1000);
+    const ms = Math.round((x.scarto - (toll == null ? 0 : imp.scostamento)) * 1000);
     const sb = (x.giudizi || []).find(g => g.esito === "sbagliata");
     if (sb) return { ok: false, perche: al.modo === "destra" ? `corda sbagliata: attesa la ${corde().indexOf(sb.nota) + 1}ª (${nome(sb.nota)}, b. ${a.misura}), sentito ${sb.sentita != null ? nome(sb.sentita) : "altro"}` : `${nome(sb.nota)} di b. ${a.misura}: sentito ${sb.sentita != null ? nome(sb.sentita) : "altro"}` };
     if (x.toll != null && Math.abs(ms) > x.toll) return { ok: false, perche: `${dove}: ${Math.abs(ms)} ms ${ms < 0 ? "in anticipo" : "in ritardo"}` };
   }
-  if (r.extra.length > (toll == null ? 2 : 1)) return { ok: false, perche: `${r.extra.length} colpi in più` };
-  const scarti = r.righe.map(x => Math.abs(x.scarto * 1000));
+  if (r.extra.length > 2) return { ok: false, perche: `${r.extra.length} colpi in più` };
+  const scarti = r.righe.map(x => Math.abs((x.scarto - (toll == null ? 0 : imp.scostamento)) * 1000));
   return { ok: true, nota: toll == null ? "note giuste" : `scarto massimo ${Math.round(Math.max(...scarti))} ms (tolleranza ${Math.round(toll)})` };
 }
 function perchéAttesa(r) {
@@ -1595,10 +1618,11 @@ async function avvio() {
   // allenamento
   for (const b of document.querySelectorAll("#modi button")) b.onclick = () => { if (!al) scegliModo(b.dataset.m); };
   for (const id of ["pDa", "pA", "pArrivo"]) $(id).onchange = () => aggiornaTratto(false);
-  $("richiesti").value = imp.richiesti; $("tolleranza").value = imp.tolleranza;
+  $("richiesti").value = imp.richiesti; $("precisione").value = imp.precisione;
   $("metAllena").checked = imp.metAllena; $("suddivisione").checked = imp.sudd;
   $("richiesti").onchange = () => { imp.richiesti = +$("richiesti").value; salvaImp(); if (al) { al.richiesti = imp.richiesti; scriviCatena(); } };
-  $("tolleranza").onchange = () => { imp.tolleranza = +$("tolleranza").value; salvaImp(); if (al) { al.pct = imp.tolleranza; scriviCatena(); } };
+  $("precisione").oninput = () => { imp.precisione = +$("precisione").value; etichetteTolleranza(); };
+  $("precisione").onchange = () => { imp.precisione = +$("precisione").value; salvaImp(); if (al) { al.pct = imp.precisione; scriviCatena(); } };
   for (const b of document.querySelectorAll("#fasi button")) b.onclick = () => { if (!al) scegliFase(b.dataset.f); };
   $("bpmAllena").addEventListener("change", etichetteTolleranza);
   etichetteTolleranza();
