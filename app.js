@@ -166,6 +166,66 @@ function suonaBuffer(b, t, uscita) {
   return s;
 }
 
+// ---------- il battito da vedere: una pallina che rimbalza di battito in battito ----------
+// Il click sul telefono si sente poco: la pallina tocca terra su ogni battito e si vede arrivare il colpo
+// (niente lampi). Le celle sono i battiti della battuta, la prima è più grande. Una coda per riquadro:
+// ogni elemento [istante in s sull'orologio audio, battito nella battuta (0..), battiti nella battuta].
+const pendoli = {};
+function pendolo(id) {
+  if (pendoli[id]) return pendoli[id];
+  const el = $(id);
+  el.innerHTML = '<div class="celle"></div><span class="pallina"></span>';
+  return (pendoli[id] = { el, celle: el.firstElementChild, palla: el.lastElementChild, colpi: [], n: 0, attivo: false });
+}
+function battitoVisto(id, t, b, n) {
+  const p = pendolo(id);
+  p.colpi.push([t, b, n]);
+  if (!p.attivo) {
+    p.attivo = true; p.el.hidden = false;
+    // sul telefono la partitura può essere più giù dello schermo: la pallina deve vedersi
+    const r = p.el.getBoundingClientRect();
+    if (r.top < 0 || r.bottom > innerHeight) p.el.scrollIntoView({ block: "start", behavior: "smooth" });
+    requestAnimationFrame(() => muoviPendolo(p));
+  }
+}
+function fermaPendolo(id) {
+  const p = pendoli[id];
+  if (!p) return;
+  p.colpi = []; p.attivo = false; p.el.hidden = true;
+}
+function muoviPendolo(p) {
+  if (!p.attivo || !ctx) return;
+  const ora = ctx.currentTime - (ctx.outputLatency || 0);
+  while (p.colpi.length > 1 && p.colpi[1][0] <= ora) p.colpi.shift();
+  const [a, b] = p.colpi;
+  if (!a || (!b && ora > a[0] + 0.6)) { p.attivo = false; p.el.hidden = true; return; }
+  const n = (b && ora >= a[0] ? b : a)[2];
+  if (n !== p.n) {
+    p.n = n;
+    p.celle.innerHTML = Array.from({ length: n }, (_, i) => `<i class="${i === 0 && n > 1 ? "primo" : ""}"></i>`).join("");
+  }
+  const w = p.celle.clientWidth, centro = i => (i + 0.5) / p.n * w;
+  let x, salto;
+  if (ora < a[0]) { x = centro(a[1]); salto = Math.min(1, (a[0] - ora) / 0.6); }          // prima del primo colpo: scende sulla cella
+  else if (!b) { x = centro(a[1]); salto = 0; }
+  else {
+    const f = Math.min(1, (ora - a[0]) / (b[0] - a[0]));
+    x = centro(a[1]) + (centro(b[1]) - centro(a[1])) * f;
+    salto = Math.sin(Math.PI * f);                                                      // a terra sul battito
+  }
+  const qui = ora >= a[0] ? a[1] : -1;
+  [...p.celle.children].forEach((c, i) => c.classList.toggle("qui", i === qui));
+  p.palla.style.transform = `translate(${x - p.palla.offsetWidth / 2}px, ${-salto * (p.el.classList.contains("grande") ? 46 : 34)}px)`;
+  requestAnimationFrame(() => muoviPendolo(p));
+}
+// in che battito della battuta cade q (quarti), e quanti battiti ha la battuta
+function battitoDi(q) {
+  let m = B.misure[0];
+  for (const x of B.misure) if (x[1] <= q + 1e-6) m = x;
+  const n = Math.max(1, Math.round(m[2] / battito()));
+  return [Math.min(n - 1, Math.round((q - m[1]) / battito())), n];
+}
+
 // corda pizzicata (Karplus-Strong). suoni: [[midi, inizio s, fine s]]
 function sintetizza(suoni, durata) {
   const sr = ctx.sampleRate, x = new Float32Array(Math.round(durata * sr));
@@ -463,6 +523,8 @@ async function ascolta(i0, i1, bpm, modo) {
   const t0 = ctx.currentTime + 0.25, tq = q => t0 + (q - qc0) * sq;
   const sorgenti = [];
   for (let q = qc0; q < q0 - 1e-6; q += battito()) sorgenti.push(suonaBuffer(bufferClick(primoDellaBattuta(q) ? 2 : 1), tq(q)));
+  fermaPendolo("pendolo");
+  for (let q = qc0; q < qFine - 1e-6; q += battito()) battitoVisto("pendolo", tq(q), ...(q < q0 - 1e-6 ? [Math.round((q - qc0) / battito()) % conta, conta] : battitoDi(q)));
   let suoni;
   if (modo === "destra") suoni = B.attacchi.slice(i0, i1 + 1).flatMap(a => noteAttese(a, "destra").map(m => [m, (a.q - q0) * sq, (a.q - q0 + a.durata) * sq]));
   else suoni = B.suoni.filter(([, s]) => s >= q0 - 1e-6 && s <= B.attacchi[i1].q + 1e-6).map(([m, s, f]) => [m, (s - q0) * sq, (Math.min(f, qFine + 2) - q0) * sq]);
@@ -526,6 +588,7 @@ async function giroATempo(opz) {
     if (j % passi && q >= q0 - 1e-6 && !opz.sudd) continue;     // le crome dell'attacco lento non proseguono
     const tipo = j % passi ? 0 : primoDellaBattuta(q) ? 2 : 1;
     sorgenti.push(suonaBuffer(bufferClick(tipo), tq(q)));
+    if (tipo) battitoVisto("pendolo", tq(q), ...(q < q0 - 1e-6 ? [Math.round((q - qc0) / b) % B.battitiPerMisura, B.battitiPerMisura] : battitoDi(q)));
   }
   if (DEMO) {
     const s = ctx.createBufferSource();
@@ -658,6 +721,7 @@ function smettiCorsa() {
   corsa = null;
   for (const s of c.sorgenti || []) { try { s.stop(); } catch (e) { /* già finito */ } }
   if (c.ascolta) ascoltatori = ascoltatori.filter(f => f !== c.ascolta);
+  fermaPendolo("pendolo");
   $("conta").style.display = "none";
   segnaAttesa(null);
   comandi(false);
@@ -1324,7 +1388,7 @@ function programmaMet() {
   while (met.prossimo < ctx.currentTime + 0.12) {
     const j = met.j, batt = Math.floor(j / sudd) % misura, sotto = j % sudd;
     suonaBuffer(bufferClick(sotto ? 0 : batt === 0 && misura > 1 ? 2 : 1), met.prossimo);
-    if (!sotto) met.colpi.push([met.prossimo, batt]);
+    if (!sotto) { met.colpi.push([met.prossimo, batt]); battitoVisto("metPendolo", met.prossimo, batt, misura); }
     met.prossimo += passo; met.j++;
   }
 }
@@ -1340,6 +1404,7 @@ function luciMet() {
 function fermaMetronomo() {
   if (!met) return;
   clearInterval(met.timer); met = null;
+  fermaPendolo("metPendolo");
   $("metVia").textContent = "Avvia";
   for (const e of $("metBattiti").children) e.classList.remove("acceso");
 }

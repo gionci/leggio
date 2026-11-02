@@ -88,7 +88,8 @@ fs.mkdirSync(OUT, { recursive: true });
   // ---------- 3. demo su tre brani ----------
   if (!process.env.VELOCE) for (const b of DEMO_BRANI) {
     errori = [];
-    await schermo(1400, 1000, false);
+    const telefono = b === DEMO_BRANI[0];             // il primo brano a larghezza telefono
+    await schermo(telefono ? 390 : 1400, telefono ? 844 : 1000, telefono);
     await cmd("Page.navigate", { url: BASE + "?demo&brano=" + b });
     await aspetta(`window.PRONTO === true && !!B`);
     await val(`localStorage.clear(); for (const k in prove) delete prove[k]; 1`);
@@ -99,7 +100,12 @@ fs.mkdirSync(OUT, { recursive: true });
       await sleep(1000);
       const durata = await val(`corsa ? corsa.fine - ctx.currentTime : 0`);
       await sleep(durata * 500);
-      if (giro === 0) await foto(`demo_${b}_1_durante`);
+      if (giro === 0) {
+        await foto(`demo_${b}_1_durante`);
+        const pend = await val(`!document.querySelector('#pendolo').hidden && getComputedStyle(document.querySelector('#pendolo .pallina')).transform`);
+        console.log(`   pallina del battito: ${pend ? "si muove (" + pend + ")" : "NON VISIBILE"}`);
+        if (!pend || pend === "none") falliti++;
+      }
       await sleep(durata * 500 + 2500);
     }
     const res = (await val(`document.querySelector('#resoconto').innerText`)).replace(/\n+/g, " | ");

@@ -21,6 +21,10 @@ stesso motore d'ascolto del Leggio Mertz (`~/Work/mertz-leggio`).
   Modi *mano destra* (stesso ritmo sulle corde a vuoto, con l'esagramma p-i-m-a), *mano sinistra* (senza tempo, l'app
   aspetta la nota giusta), *insieme* (prima le dita, poi il tempo).
 - **Accordatore** (YIN) e **Metronomo** (click acuto che l'ascolto non sente).
+- **Battito da vedere** (2/11, richiesta dopo la prova su iPhone: il click si sente poco): sopra la partitura, mentre si
+  ascolta, si prova o ci si allena, e nella scheda Metronomo, una pallina rimbalza di battito in battito e tocca terra sul
+  colpo. Le celle sono i battiti della battuta (la prima bordata e rossa quando tocca); niente lampi. Segue l'orologio audio
+  meno la latenza d'uscita. Sul telefono la pagina scorre da sola per mostrarla.
 - **Crediti**: fonte, trascrittore e licenza di ogni brano; «Fonte e licenza» accanto al titolo per il brano aperto.
 
 ## Architettura

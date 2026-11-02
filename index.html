@@ -137,6 +137,18 @@ dialog .riga { display: flex; gap: 10px; align-items: center; margin: 12px 0; fl
 #dlgOriginale { max-width: 96vw; width: 960px; padding: 12px; }
 #dlgOriginale img { width: 100%; display: block; margin-bottom: 8px; }
 .esito { font-weight: 600; }
+/* il battito da vedere: pallina che rimbalza sulle celle dei battiti */
+.pendolo { position: relative; height: 74px; padding: 52px 16px 0; border-bottom: 1px solid var(--filo); background: var(--foglio); }
+.pendolo[hidden] { display: none; }
+.pendolo .celle { display: flex; gap: 6px; height: 14px; }
+.pendolo .celle i { flex: 1; background: var(--carta2); border: 1px solid var(--filo); }
+.pendolo .celle i.primo { border-color: var(--tenue); border-width: 2px; }
+.pendolo .celle i.qui { background: var(--inchiostro); border-color: var(--inchiostro); }
+.pendolo .celle i.primo.qui { background: var(--accento); border-color: var(--accento); }
+.pendolo .pallina { position: absolute; left: 16px; top: 36px; width: 18px; height: 18px; border-radius: 50% !important; background: var(--accento); will-change: transform; }
+.pendolo.grande { width: min(560px, 90vw); height: 112px; padding-top: 82px; border: 0; background: none; }
+.pendolo.grande .celle { height: 22px; }
+.pendolo.grande .pallina { top: 58px; width: 24px; height: 24px; }
 ol.crediti { font-size: 14px; padding-left: 22px; max-height: 40vh; overflow-y: auto; }
 ol.crediti li { margin: 6px 0; }
 a { color: var(--accento); }
@@ -216,6 +228,7 @@ button, input, select, .bpm, .gruppo, #leggio, .foglio, .carta, dialog, .misure 
     </div>
 
     <div id="leggio">
+      <div id="pendolo" class="pendolo" hidden></div>
       <div id="striscia"><div id="rullo"><div id="osmd"></div><svg id="segni"></svg></div><div id="testina"></div><div id="conta"></div></div>
       <div id="stato"><span id="statoTesto">Preparo la partitura…</span></div>
     </div>
@@ -292,6 +305,7 @@ button, input, select, .bpm, .gruppo, #leggio, .foglio, .carta, dialog, .misure 
   <section class="pannello" data-p="metronomo" hidden>
     <div class="foglio metronomo">
       <div class="bpm"><button data-bpm="-1">−</button><input class="campoBpm" id="metBpm" type="number" min="20" max="240" value="60"><button data-bpm="1">+</button><span id="metUnita">al minuto</span></div>
+      <div id="metPendolo" class="pendolo grande" hidden></div>
       <div id="metBattiti"></div>
       <div class="comandi" style="justify-content:center">
         <label class="scelta">battiti per battuta <select id="metMisura"><option>1</option><option>2</option><option>3</option><option selected>4</option><option>6</option></select></label>
